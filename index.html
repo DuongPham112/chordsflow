@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Khám Phá Vòng Hòa Thanh</title>
+    <title>CHORDS FLOW</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,12 +28,13 @@
             font-weight: 600;
         }
         .chord-card {
+            /* No longer interactive for drawing, so remove hover effects */
             transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
         }
-        .chord-card:hover {
+        /* .chord-card:hover {
             transform: translateY(-4px);
             box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-        }
+        } */
         .section {
             display: none;
         }
@@ -98,16 +99,16 @@
                     <div>
                         <h3 class="text-2xl font-bold mb-4 text-center text-teal-700">Hợp Âm Diatonic</h3>
                         <div id="diatonic-chords" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4"></div>
-<div class="mt-10 text-center">
-    <label class="mr-4 font-medium">Hiển thị hợp âm bằng:</label>
-    <label class="mr-4">
-        <input type="radio" name="chord-view" value="guitar" checked> Guitar
-    </label>
-    <label>
-        <input type="radio" name="chord-view" value="piano"> Piano
-    </label>
-</div>
-<div id="chord-diagram" class="mt-6 flex justify-center"></div>
+                        <div class="mt-10 text-center">
+                            <label class="mr-4 font-medium">Hiển thị hợp âm bằng:</label>
+                            <label class="mr-4">
+                                <input type="radio" name="chord-view" value="guitar" checked> Guitar
+                            </label>
+                            <label>
+                                <input type="radio" name="chord-view" value="piano"> Piano
+                            </label>
+                        </div>
+                        <div id="chord-diagrams-container" class="mt-8 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-x-4 gap-y-6 items-start"></div>
 
                     </div>
                     <div>
@@ -190,7 +191,8 @@
 
     <script>
         let chordShapes = {};
-        let selectedChord = null;
+        let selectedChord = null; // This will no longer be used for single diagram drawing
+        let currentDiatonicChords = []; // Store current key's chords to redraw on instrument change
 
         const musicData = {
             notes: ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"],
@@ -300,12 +302,7 @@
                     
                     chordViewRadios.forEach(radio => {
                         radio.addEventListener('change', () => {
-                            if (selectedChord) {
-                                // Find the display name from the card to pass to the draw function
-                                const selectedChordCard = document.querySelector(`.chord-card[data-chord-name="${selectedChord.replace('dim','°')}"]`);
-                                const displayName = selectedChordCard ? selectedChordCard.dataset.chordName : selectedChord;
-                                drawChordDiagram(selectedChord, displayName);
-                            }
+                            drawAllDiagrams(); // Redraw all diagrams on instrument change
                         });
                     });
 
@@ -337,41 +334,40 @@
                 const numerals = mode === 'major' ? romanNumeralsMajor : romanNumeralsMinor;
 
                 diatonicChordsContainer.innerHTML = '';
-                document.getElementById('chord-diagram').innerHTML = ''; // Clear diagram on key change
-                selectedChord = null; // Reset selected chord
+                currentDiatonicChords = []; // Reset the array for the new key
 
-                if (!keyData) return;
+                if (!keyData) {
+                    drawAllDiagrams(); // Clear diagrams if key data is invalid
+                    return;
+                }
 
                 keyData.forEach(chord => {
                     let chordName = chord.note + chord.quality;
-                    // Handle special case for minor V
+                    let displayName = `${chord.note.replace('#', '♯')}${chord.quality === 'dim' ? '°' : (chord.quality === 'm (or Major)' ? '' : chord.quality)}`;
+                    
                     if (chord.quality === 'm (or Major)') {
-                        chordName = chord.note; // Use major V for harmonic minor
+                        chordName = chord.note; 
                     }
+                    const lookupName = chordName.replace('dim', '°').replace('dim', 'Bdim'); // Fix for lookup
 
                     const card = document.createElement('div');
-                    card.className = 'chord-card cursor-pointer p-4 bg-white rounded-lg shadow-md text-center border-2 border-transparent hover:border-teal-500 transition-all';
-                    card.dataset.chordName = chordName.replace('dim', '°');
+                    card.className = 'chord-card p-4 bg-white rounded-lg shadow-md text-center border-2 border-transparent transition-all';
                     
                     card.innerHTML = `
-                        <div class="font-bold text-xl text-stone-800">${chord.note.replace('#', '♯')}${chord.quality === 'dim' ? '°' : (chord.quality === 'm (or Major)' ? '' : chord.quality)}</div>
+                        <div class="font-bold text-xl text-stone-800">${displayName}</div>
                         <div class="text-sm text-stone-500">${numerals[chord.degree]}</div>
                     `;
-
-                    card.addEventListener('click', () => {
-                        let clickedChordName = card.dataset.chordName;
-                        // For display, we might want to show "G" instead of "Gm" for the V of C minor, but for lookup, "G" might be what's in the JSON. Let's be explicit.
-                        const shapeLookupName = clickedChordName.replace('°', 'dim');
-
-                        selectedChord = shapeLookupName;
-                        drawChordDiagram(shapeLookupName, clickedChordName); // Pass both raw and display name
-                        
-                        document.querySelectorAll('.chord-card').forEach(c => c.classList.remove('border-teal-500', 'bg-teal-50'));
-                        card.classList.add('border-teal-500', 'bg-teal-50');
-                    });
+                    
                     diatonicChordsContainer.appendChild(card);
+                    
+                    // Store info needed for drawing
+                    currentDiatonicChords.push({
+                        lookupName: chordName.replace('dim', 'Bdim'), // Bdim is the key in JSON
+                        displayName: displayName
+                    });
                 });
-
+                
+                drawAllDiagrams();
                 displayProgressions(keyName, mode);
             }
 
@@ -416,54 +412,63 @@
             });
         }
         
-        function drawChordDiagram(lookupName, displayName) {
+        function drawAllDiagrams() {
+            const diagramsContainer = document.getElementById('chord-diagrams-container');
             const instrument = document.querySelector('input[name="chord-view"]:checked').value;
-            const diagramContainer = document.getElementById('chord-diagram');
-            diagramContainer.innerHTML = '';
+            diagramsContainer.innerHTML = ''; // Clear previous diagrams
 
-            const shapeData = chordShapes[lookupName];
+            if (!currentDiatonicChords || currentDiatonicChords.length === 0) return;
 
-            if (!shapeData) {
-                diagramContainer.innerHTML = `<p class="text-stone-500">Chưa có dữ liệu cho hợp âm ${displayName}</p>`;
-                return;
-            }
+            currentDiatonicChords.forEach(chordInfo => {
+                const lookupName = chordInfo.lookupName.replace('°', 'dim');
+                const shapeData = chordShapes[lookupName];
+                let diagramCell = document.createElement('div');
+                diagramCell.className = 'flex justify-center items-start h-full';
 
-            if (instrument === 'guitar' && shapeData.guitar) {
-                diagramContainer.appendChild(drawGuitarChord(shapeData.guitar, displayName));
-            } else if (instrument === 'piano' && shapeData.piano) {
-                diagramContainer.appendChild(drawPianoChord(shapeData.piano, displayName));
-            } else {
-                 diagramContainer.innerHTML = `<p class="text-stone-500">Chưa có dữ liệu ${instrument} cho hợp âm ${displayName}</p>`;
-            }
+                if (!shapeData) {
+                    diagramCell.innerHTML = `<div class="w-full text-center mt-2"><p class="text-xs text-stone-400">Chưa có dữ liệu</p></div>`;
+                } else if (instrument === 'guitar' && shapeData.guitar) {
+                    diagramCell.appendChild(drawGuitarChord(shapeData.guitar));
+                } else if (instrument === 'piano' && shapeData.piano) {
+                    diagramCell.appendChild(drawPianoChord(shapeData.piano));
+                } else {
+                    diagramCell.innerHTML = `<div class="w-full text-center mt-2"><p class="text-xs text-stone-400">Không có thế bấm ${instrument}</p></div>`;
+                }
+                diagramsContainer.appendChild(diagramCell);
+            });
         }
 
-        function drawGuitarChord(positions, chordName) {
+
+        function drawGuitarChord(positions, chordName) { // chordName is now optional
             const svgNS = "http://www.w3.org/2000/svg";
             const svg = document.createElementNS(svgNS, "svg");
-            const width = 150;
-            const height = 180;
+            const hasTitle = chordName && chordName !== "";
+            const width = 120;
+            const height = hasTitle ? 160 : 130;
+            const startY = hasTitle ? 40 : 15;
+
             svg.setAttribute("width", "100%");
             svg.setAttribute("height", "100%");
             svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
             svg.style.maxWidth = `${width}px`;
 
-
             const numStrings = 6;
             const numFrets = 5;
-            const stringSpacing = 20;
-            const fretSpacing = 30;
+            const stringSpacing = (width - 40) / (numStrings - 1);
+            const fretSpacing = (height - startY - 5) / numFrets;
             const startX = 20;
-            const startY = 40;
 
-            const title = document.createElementNS(svgNS, 'text');
-            title.setAttribute('x', width / 2);
-            title.setAttribute('y', 25);
-            title.setAttribute('font-size', '20');
-            title.setAttribute('font-weight', 'bold');
-            title.setAttribute('text-anchor', 'middle');
-            title.setAttribute('fill', '#44403c');
-            title.textContent = chordName;
-            svg.appendChild(title);
+            if (hasTitle) {
+                const title = document.createElementNS(svgNS, 'text');
+                title.setAttribute('x', width / 2);
+                title.setAttribute('y', 25);
+                title.setAttribute('font-size', '20');
+                title.setAttribute('font-weight', 'bold');
+                title.setAttribute('text-anchor', 'middle');
+                title.setAttribute('fill', '#44403c');
+                title.textContent = chordName;
+                svg.appendChild(title);
+            }
 
             for (let i = 0; i <= numFrets; i++) {
                 const y = startY + i * fretSpacing;
@@ -508,7 +513,7 @@
                     const circle = document.createElementNS(svgNS, "circle");
                     circle.setAttribute("cx", x);
                     circle.setAttribute("cy", y);
-                    circle.setAttribute("r", 8);
+                    circle.setAttribute("r", 7);
                     circle.setAttribute("fill", "#0d9488");
                     svg.appendChild(circle);
                 } else if (fret === 0) {
@@ -526,32 +531,35 @@
             return svg;
         }
 
-        function drawPianoChord(notes, chordName) {
+        function drawPianoChord(notes, chordName) { // chordName is now optional
             const svgNS = "http://www.w3.org/2000/svg";
             const svg = document.createElementNS(svgNS, "svg");
-            const width = 280;
-            const height = 180;
+            const hasTitle = chordName && chordName !== "";
+            const width = 220;
+            const height = hasTitle ? 160 : 130;
+            const startY = hasTitle ? 50 : 15;
+
             svg.setAttribute("width", "100%");
             svg.setAttribute("height", "100%");
             svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
             svg.style.maxWidth = `${width}px`;
 
-            const title = document.createElementNS(svgNS, 'text');
-            title.setAttribute('x', width / 2);
-            title.setAttribute('y', 25);
-            title.setAttribute('font-size', '20');
-            title.setAttribute('font-weight', 'bold');
-            title.setAttribute('text-anchor', 'middle');
-            title.setAttribute('fill', '#44403c');
-            title.textContent = chordName;
-            svg.appendChild(title);
+            if (hasTitle) {
+                const title = document.createElementNS(svgNS, 'text');
+                title.setAttribute('x', width / 2);
+                title.setAttribute('y', 25);
+                title.setAttribute('font-size', '20');
+                title.setAttribute('font-weight', 'bold');
+                title.setAttribute('text-anchor', 'middle');
+                title.setAttribute('fill', '#44403c');
+                title.textContent = chordName;
+                svg.appendChild(title);
+            }
 
-            const keyWidth = 20;
-            const keyHeight = 100;
-            const blackKeyWidth = 13;
-            const blackKeyHeight = 65;
-            const numWhiteKeys = 14;
-            const startY = 50;
+            const keyWidth = width / 14; // 14 white keys to span two octaves
+            const keyHeight = height - startY - 5;
+            const blackKeyWidth = keyWidth * 0.6;
+            const blackKeyHeight = keyHeight * 0.6;
             
             const whiteKeyNotes = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
             const notesInOctave = 12;
@@ -569,7 +577,7 @@
             });
 
             // Draw white keys
-            for (let i = 0; i < numWhiteKeys; i++) {
+            for (let i = 0; i < 14; i++) { // Draw 14 white keys for two octaves
                 const key = document.createElementNS(svgNS, "rect");
                 const xPos = i * keyWidth;
                 key.setAttribute("x", xPos);
@@ -587,7 +595,7 @@
             // Draw black keys
             const blackKeyPattern = [1, 1, 0, 1, 1, 1, 0]; // C#, D#, F#, G#, A#
             let whiteKeyIndex = 0;
-            for(let i=0; i < numWhiteKeys -1; i++){
+            for(let i=0; i < 13; i++){ // Draw 13 black keys
                 if(whiteKeyNotes[i % 7] === 'E' || whiteKeyNotes[i % 7] === 'B') continue;
 
                 const key = document.createElementNS(svgNS, "rect");
