@@ -98,6 +98,17 @@
                     <div>
                         <h3 class="text-2xl font-bold mb-4 text-center text-teal-700">Hợp Âm Diatonic</h3>
                         <div id="diatonic-chords" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4"></div>
+<div class="mt-10 text-center">
+    <label class="mr-4 font-medium">Hiển thị hợp âm bằng:</label>
+    <label class="mr-4">
+        <input type="radio" name="chord-view" value="guitar" checked> Guitar
+    </label>
+    <label>
+        <input type="radio" name="chord-view" value="piano"> Piano
+    </label>
+</div>
+<div id="chord-diagram" class="mt-6 flex justify-center"></div>
+
                     </div>
                     <div>
                         <h3 class="text-2xl font-bold mb-4 text-center text-teal-700">Vòng Hòa Thanh Phổ Biến</h3>
@@ -178,6 +189,9 @@
     </div>
 
     <script>
+        let chordShapes = {};
+        let selectedChord = null;
+
         const musicData = {
             notes: ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"],
             getNote: function(rootIndex, interval) {
@@ -237,161 +251,356 @@
 
         const gameScenariosData = [
             { title: "Mở Đầu / Khu An Toàn", icon: "🏞️", emotion: "Bình yên, chào đón", progressions: ["I – IV – V – I (Trưởng)", "vi – IV – I – V (Trưởng, chậm)"] },
-            { title: "Phiêu Lưu / Khám Phá", icon: "🗺️", emotion: "Hào hứng, tò mò", progressions: ["I – iii – IV – V (Trưởng)", "i – VI – III – VII (Thứ)"] },
-            { title: "Chiến Đấu / Kịch Tính", icon: "⚔️", emotion: "Căng thẳng, quyết liệt", progressions: ["i – iv – V – i (Thứ)", "i – VII – VI – V (Thứ)"] },
-            { title: "Buồn / Hồi Ức", icon: "💧", emotion: "U sầu, hoài niệm", progressions: ["vi – IV – I – V (Trưởng)", "i – iv – v (Thứ tự nhiên)"] },
-            { title: "Thắng Lợi / Thành Tựu", icon: "🏆", emotion: "Hân hoan, tự hào", progressions: ["I – IV – V – I (Trưởng, nhanh)"] },
-            { title: "Giao Tiếp / Đối Thoại", icon: "💬", emotion: "Bình tĩnh, tập trung", progressions: ["ii – V – I (Trưởng/Thứ)"] }
+            { title: "Làng Mạc / Thị Trấn", icon: "🏘️", emotion: "Thân thiện, nhộn nhịp", progressions: ["I – vi – IV – V (Trưởng)", "I – IV – ii – V (Trưởng)"] },
+            { title: "Hang Động / Hầm Ngục", icon: "🦇", emotion: "Bí ẩn, căng thẳng", progressions: ["i – VI – III – VII (Thứ)", "i – iv – V – i (Thứ)"] },
+            { title: "Rừng Sâu / Khám Phá", icon: "🌲", emotion: "Kỳ bí, phiêu lưu", progressions: ["i – VI – VII – i (Thứ)", "I – iii – IV – V (Trưởng)"] },
+            { title: "Chiến Đấu / Nguy Hiểm", icon: "⚔️", emotion: "Kịch tính, khẩn trương", progressions: ["i – VII – VI – V (Thứ, nhanh)", "i – iv – V – i (Thứ)"] },
+            { title: "Chiến Thắng / Vinh Quang", icon: "🏆", emotion: "Hùng tráng, hân hoan", progressions: ["I – V – vi – IV (Trưởng)", "IV – V – I (Trưởng)"] }
         ];
 
-        const secondaryDominantsData = {
-            major: [
-                { rule: "V7/ii", example: "A7 → Dm", key: "C" },
-                { rule: "V7/iii", example: "B7 → Em", key: "C" },
-                { rule: "V7/IV", example: "C7 → F", key: "C" },
-                { rule: "V7/V", example: "D7 → G", key: "C" },
-                { rule: "V7/vi", example: "E7 → Am", key: "C" },
-            ],
-            minor: [
-                { rule: "V7/III", example: "G7 → C", key: "Am" },
-                { rule: "V7/iv", example: "A7 → Dm", key: "Am" },
-                { rule: "V7/VI", example: "C7 → F", key: "Am" },
-                { rule: "V7/VII", example: "D7 → G", key: "Am" },
-            ]
-        };
+        document.addEventListener('DOMContentLoaded', () => {
+            fetch('chord_shapes.json')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    chordShapes = data;
+                })
+                .catch(error => console.error('Error loading chord shapes:', error));
 
-        const romanNumerals = ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°'];
-        const minorRomanNumerals = ['i', 'ii°', 'III', 'iv', 'v', 'VI', 'VII'];
+            const keySelector = document.getElementById('key-selector');
+            const modeSelector = document.getElementById('mode-selector');
+            const tabs = document.querySelectorAll('.tab-btn');
+            const sections = document.querySelectorAll('.section');
+            const chordViewRadios = document.querySelectorAll('input[name="chord-view"]');
 
-        const keySelector = document.getElementById('key-selector');
-        const modeSelector = document.getElementById('mode-selector');
-        const diatonicChordsContainer = document.getElementById('diatonic-chords');
-        const progressionsContainer = document.getElementById('progressions');
-        const gameScenariosContainer = document.getElementById('game-scenarios');
-        const secondaryDominantsMajorContainer = document.getElementById('secondary-dominants-major');
-        const secondaryDominantsMinorContainer = document.getElementById('secondary-dominants-minor');
-        const tabs = document.querySelectorAll('.tab-btn');
-        const sections = document.querySelectorAll('.section');
-
-        function init() {
-            musicData.notes.forEach(note => {
+            const allNotes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+            allNotes.forEach(note => {
                 const option = document.createElement('option');
                 option.value = note;
-                option.textContent = note;
+                option.textContent = note.replace('#', '♯').replace('b', '♭');
                 keySelector.appendChild(option);
             });
-            keySelector.value = 'C';
 
-            updateUI();
-            populateGameScenarios();
-            populateSecondaryDominants();
+            function updateDisplay() {
+                const selectedKey = keySelector.value;
+                const selectedMode = modeSelector.value;
+                displayKey(selectedKey, selectedMode);
+                // The theory part is static in this version, so no need to call updateTheory
+            }
 
-            keySelector.addEventListener('change', updateUI);
-            modeSelector.addEventListener('change', updateUI);
+            function displayKey(keyName, mode) {
+                const diatonicChordsContainer = document.getElementById('diatonic-chords');
+                const keyData = musicData.getKeyData(keyName, mode);
+                const romanNumeralsMajor = ["I", "ii", "iii", "IV", "V", "vi", "vii°"];
+                const romanNumeralsMinor = ["i", "ii°", "III", "iv", "V", "VI", "VII"];
+                const numerals = mode === 'major' ? romanNumeralsMajor : romanNumeralsMinor;
+
+                diatonicChordsContainer.innerHTML = '';
+                document.getElementById('chord-diagram').innerHTML = ''; // Clear diagram on key change
+                selectedChord = null; // Reset selected chord
+
+                if (!keyData) return;
+
+                keyData.forEach(chord => {
+                    let chordName = chord.note + chord.quality;
+                    // Handle special case for minor V
+                    if (chord.quality === 'm (or Major)') {
+                        chordName = chord.note; // Use major V for harmonic minor
+                    }
+
+                    const card = document.createElement('div');
+                    card.className = 'chord-card cursor-pointer p-4 bg-white rounded-lg shadow-md text-center border-2 border-transparent hover:border-teal-500 transition-all';
+                    card.dataset.chordName = chordName.replace('dim', '°');
+                    
+                    card.innerHTML = `
+                        <div class="font-bold text-xl text-stone-800">${chord.note.replace('#', '♯')}${chord.quality === 'dim' ? '°' : (chord.quality === 'm (or Major)' ? '' : chord.quality)}</div>
+                        <div class="text-sm text-stone-500">${numerals[chord.degree]}</div>
+                    `;
+
+                    card.addEventListener('click', () => {
+                        let clickedChordName = card.dataset.chordName;
+                        // For display, we might want to show "G" instead of "Gm" for the V of C minor, but for lookup, "G" might be what's in the JSON. Let's be explicit.
+                        const shapeLookupName = clickedChordName.replace('°', 'dim');
+
+                        selectedChord = shapeLookupName;
+                        drawChordDiagram(shapeLookupName, clickedChordName); // Pass both raw and display name
+                        
+                        document.querySelectorAll('.chord-card').forEach(c => c.classList.remove('border-teal-500', 'bg-teal-50'));
+                        card.classList.add('border-teal-500', 'bg-teal-50');
+                    });
+                    diatonicChordsContainer.appendChild(card);
+                });
+
+                displayProgressions(keyName, mode);
+            }
+
+            function displayProgressions(keyName, mode) {
+                const progressionsContainer = document.getElementById('progressions');
+                const progressions = progressionsData[mode];
+                progressionsContainer.innerHTML = '';
+                if (!progressions) return;
+
+                progressions.forEach(prog => {
+                    const progCard = document.createElement('div');
+                    progCard.className = 'p-4 bg-stone-50 rounded-lg shadow';
+                    progCard.innerHTML = `
+                        <h4 class="font-semibold text-lg text-teal-600">${prog.roman}</h4>
+                        <p class="text-stone-700">${prog.desc}</p>
+                    `;
+                    progressionsContainer.appendChild(progCard);
+                });
+            }
+
+            keySelector.addEventListener('change', updateDisplay);
+            modeSelector.addEventListener('change', updateDisplay);
+
             tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
                     tabs.forEach(t => t.classList.remove('active'));
                     tab.classList.add('active');
-
                     sections.forEach(s => s.classList.remove('active'));
                     document.getElementById(tab.dataset.tab).classList.add('active');
                 });
             });
-        }
 
-        function updateUI() {
-            const selectedKey = keySelector.value;
-            const selectedMode = modeSelector.value;
-            const keyData = musicData.getKeyData(selectedKey, selectedMode);
-
-            if (!keyData) return;
-
-            displayDiatonicChords(keyData, selectedMode);
-            displayProgressions(keyData, selectedMode);
-        }
-        
-        function displayDiatonicChords(chords, mode) {
-            diatonicChordsContainer.innerHTML = '';
-            const numerals = mode === 'major' ? romanNumerals : minorRomanNumerals;
-            chords.forEach((chord, i) => {
-                let qualityDisplay = chord.quality;
-                if (qualityDisplay === 'm (or Major)') {
-                    qualityDisplay = ' (V)';
-                }
-                
-                const card = document.createElement('div');
-                card.className = 'chord-card text-center bg-white p-4 rounded-lg shadow-md border border-stone-200';
-                card.innerHTML = `
-                    <p class="text-2xl font-bold text-teal-600">${chord.note}${qualityDisplay.replace(' (V)', '')}</p>
-                    <p class="text-stone-500 font-semibold">${numerals[i]}</p>
-                `;
-                diatonicChordsContainer.appendChild(card);
-            });
-        }
-
-        function displayProgressions(chords, mode) {
-            progressionsContainer.innerHTML = '';
-            const progressions = progressionsData[mode];
-            progressions.forEach(prog => {
-                const card = document.createElement('div');
-                card.className = 'chord-card bg-white p-6 rounded-lg shadow-md border border-stone-200';
-                
-                let actualChords = prog.roman.split(' – ').map(r => {
-                    const numerals = mode === 'major' ? romanNumerals : minorRomanNumerals;
-                    const index = numerals.indexOf(r);
-                    if (index !== -1) {
-                        let chord = chords[index];
-                        let qualityDisplay = chord.quality;
-                         if (qualityDisplay === 'm (or Major)') {
-                            qualityDisplay = '';
-                        }
-                        return `${chord.note}${qualityDisplay}`;
+            chordViewRadios.forEach(radio => {
+                radio.addEventListener('change', () => {
+                    if (selectedChord) {
+                        const selectedChordCard = document.querySelector(`.chord-card[data-chord-name="${selectedChord.replace('dim','°')}"]`);
+                        const displayName = selectedChordCard ? selectedChordCard.dataset.chordName : selectedChord;
+                        drawChordDiagram(selectedChord, displayName);
                     }
-                    return r;
-                }).join(' – ');
-
-                card.innerHTML = `
-                    <h4 class="font-bold text-xl text-teal-700 mb-2">${prog.roman}</h4>
-                    <p class="text-lg font-mono text-stone-800 mb-3">${actualChords}</p>
-                    <p class="text-stone-600">${prog.desc}</p>
-                `;
-                progressionsContainer.appendChild(card);
+                });
             });
-        }
 
-        function populateGameScenarios() {
+            // Initial load
+            updateDisplay();
+            displayGameScenarios();
+        });
+
+        function displayGameScenarios() {
+            const container = document.getElementById('game-scenarios');
+            if (!container) return;
+            container.innerHTML = '';
             gameScenariosData.forEach(scenario => {
                 const card = document.createElement('div');
-                card.className = 'chord-card bg-white p-6 rounded-lg shadow-md border border-stone-200 flex flex-col';
+                card.className = 'p-6 bg-white rounded-xl shadow-md flex flex-col items-center text-center';
                 card.innerHTML = `
-                    <div class="text-4xl mb-3 text-center">${scenario.icon}</div>
-                    <h4 class="font-bold text-xl text-teal-700 text-center mb-2">${scenario.title}</h4>
-                    <p class="text-center text-stone-500 italic mb-4">"${scenario.emotion}"</p>
-                    <div class="mt-auto space-y-2">
-                        ${scenario.progressions.map(p => `<p class="text-center font-mono bg-stone-100 text-stone-700 py-1 px-2 rounded">${p}</p>`).join('')}
+                    <div class="text-5xl mb-3">${scenario.icon}</div>
+                    <h4 class="font-bold text-xl text-teal-700 mb-2">${scenario.title}</h4>
+                    <p class="text-stone-600 italic mb-3">"${scenario.emotion}"</p>
+                    <div class="text-left">
+                        <p class="font-semibold text-stone-800">Vòng hòa thanh gợi ý:</p>
+                        <ul class="list-disc list-inside text-stone-700">
+                            ${scenario.progressions.map(p => `<li>${p}</li>`).join('')}
+                        </ul>
                     </div>
                 `;
-                gameScenariosContainer.appendChild(card);
+                container.appendChild(card);
             });
         }
+        
+        function drawChordDiagram(lookupName, displayName) {
+            const instrument = document.querySelector('input[name="chord-view"]:checked').value;
+            const diagramContainer = document.getElementById('chord-diagram');
+            diagramContainer.innerHTML = '';
 
-        function populateSecondaryDominants() {
-            secondaryDominantsData.major.forEach(item => {
-                const li = document.createElement('li');
-                li.innerHTML = `<span class="font-bold text-stone-700">${item.rule}:</span> <span class="font-mono">${item.example}</span> (trong giọng ${item.key})`;
-                secondaryDominantsMajorContainer.appendChild(li);
-            });
-            secondaryDominantsData.minor.forEach(item => {
-                const li = document.createElement('li');
-                li.innerHTML = `<span class="font-bold text-stone-700">${item.rule}:</span> <span class="font-mono">${item.example}</span> (trong giọng ${item.key})`;
-                secondaryDominantsMinorContainer.appendChild(li);
-            });
+            const shapeData = chordShapes[lookupName];
+
+            if (!shapeData) {
+                diagramContainer.innerHTML = `<p class="text-stone-500">Chưa có dữ liệu cho hợp âm ${displayName}</p>`;
+                return;
+            }
+
+            if (instrument === 'guitar' && shapeData.guitar) {
+                diagramContainer.appendChild(drawGuitarChord(shapeData.guitar, displayName));
+            } else if (instrument === 'piano' && shapeData.piano) {
+                diagramContainer.appendChild(drawPianoChord(shapeData.piano, displayName));
+            } else {
+                 diagramContainer.innerHTML = `<p class="text-stone-500">Chưa có dữ liệu ${instrument} cho hợp âm ${displayName}</p>`;
+            }
         }
 
-        document.addEventListener('DOMContentLoaded', init);
+        function drawGuitarChord(positions, chordName) {
+            const svgNS = "http://www.w3.org/2000/svg";
+            const svg = document.createElementNS(svgNS, "svg");
+            const width = 150;
+            const height = 180;
+            svg.setAttribute("width", "100%");
+            svg.setAttribute("height", "100%");
+            svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+            svg.style.maxWidth = `${width}px`;
+
+
+            const numStrings = 6;
+            const numFrets = 5;
+            const stringSpacing = 20;
+            const fretSpacing = 30;
+            const startX = 20;
+            const startY = 40;
+
+            const title = document.createElementNS(svgNS, 'text');
+            title.setAttribute('x', width / 2);
+            title.setAttribute('y', 25);
+            title.setAttribute('font-size', '20');
+            title.setAttribute('font-weight', 'bold');
+            title.setAttribute('text-anchor', 'middle');
+            title.setAttribute('fill', '#44403c');
+            title.textContent = chordName;
+            svg.appendChild(title);
+
+            for (let i = 0; i <= numFrets; i++) {
+                const y = startY + i * fretSpacing;
+                const line = document.createElementNS(svgNS, "line");
+                line.setAttribute("x1", startX);
+                line.setAttribute("y1", y);
+                line.setAttribute("x2", startX + (numStrings - 1) * stringSpacing);
+                line.setAttribute("y2", y);
+                line.setAttribute("stroke", "#a8a29e");
+                line.setAttribute("stroke-width", i === 0 ? 4 : 1);
+                svg.appendChild(line);
+            }
+
+            for (let i = 0; i < numStrings; i++) {
+                const x = startX + i * stringSpacing;
+                const line = document.createElementNS(svgNS, "line");
+                line.setAttribute("x1", x);
+                line.setAttribute("y1", startY);
+                line.setAttribute("x2", x);
+                line.setAttribute("y2", startY + numFrets * fretSpacing);
+                line.setAttribute("stroke", "#a8a29e");
+                line.setAttribute("stroke-width", 1);
+                svg.appendChild(line);
+            }
+            
+            // Note: Guitar string data is usually [E, A, D, G, B, e]. We draw from left to right.
+            // The data seems to be [E, A, D, G, B, e], so string 0 is low E.
+            positions.forEach((fret, stringIndex) => {
+                const x = startX + stringIndex * stringSpacing; 
+                if (fret === 'x' || fret === null) {
+                    const text = document.createElementNS(svgNS, 'text');
+                     text.setAttribute('x', x);
+                     text.setAttribute('y', startY - 8);
+                     text.setAttribute('font-size', '16');
+                     text.setAttribute('text-anchor', 'middle');
+                     text.setAttribute('fill', '#a8a29e');
+                     text.textContent = 'x';
+                     svg.appendChild(text);
+                }
+                else if (typeof fret === 'number' && fret > 0) {
+                    const y = startY + fret * fretSpacing - (fretSpacing / 2);
+                    const circle = document.createElementNS(svgNS, "circle");
+                    circle.setAttribute("cx", x);
+                    circle.setAttribute("cy", y);
+                    circle.setAttribute("r", 8);
+                    circle.setAttribute("fill", "#0d9488");
+                    svg.appendChild(circle);
+                } else if (fret === 0) {
+                     const text = document.createElementNS(svgNS, 'text');
+                     text.setAttribute('x', x);
+                     text.setAttribute('y', startY - 8);
+                     text.setAttribute('font-size', '16');
+                     text.setAttribute('text-anchor', 'middle');
+                     text.setAttribute('fill', '#44403c');
+                     text.textContent = 'o';
+                     svg.appendChild(text);
+                }
+            });
+
+            return svg;
+        }
+
+        function drawPianoChord(notes, chordName) {
+            const svgNS = "http://www.w3.org/2000/svg";
+            const svg = document.createElementNS(svgNS, "svg");
+            const width = 280;
+            const height = 180;
+            svg.setAttribute("width", "100%");
+            svg.setAttribute("height", "100%");
+            svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+            svg.style.maxWidth = `${width}px`;
+
+            const title = document.createElementNS(svgNS, 'text');
+            title.setAttribute('x', width / 2);
+            title.setAttribute('y', 25);
+            title.setAttribute('font-size', '20');
+            title.setAttribute('font-weight', 'bold');
+            title.setAttribute('text-anchor', 'middle');
+            title.setAttribute('fill', '#44403c');
+            title.textContent = chordName;
+            svg.appendChild(title);
+
+            const keyWidth = 20;
+            const keyHeight = 100;
+            const blackKeyWidth = 13;
+            const blackKeyHeight = 65;
+            const numWhiteKeys = 14;
+            const startY = 50;
+            
+            const whiteKeyNotes = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+            const notesInOctave = 12;
+            const noteMap = { 'C': 0, 'C#': 1, 'D': 2, 'D#': 3, 'E': 4, 'F': 5, 'F#': 6, 'G': 7, 'G#': 8, 'A': 9, 'A#': 10, 'B': 11 };
+            const pianoNotes = notes.map(n => n.toUpperCase().replace('♯','#').replace('♭','B')); // Simple mapping for flat
+
+            const pressedKeys = new Set();
+            pianoNotes.forEach(noteName => {
+                const normalizedNote = noteName.endsWith('B') && noteName.length > 1 ? String.fromCharCode(noteName.charCodeAt(0)-1) + '#' : noteName;
+                 if (noteMap[normalizedNote] !== undefined) {
+                    pressedKeys.add(noteMap[normalizedNote]);
+                } else if(noteMap[noteName] !== undefined){
+                     pressedKeys.add(noteMap[noteName]);
+                }
+            });
+
+            // Draw white keys
+            for (let i = 0; i < numWhiteKeys; i++) {
+                const key = document.createElementNS(svgNS, "rect");
+                const xPos = i * keyWidth;
+                key.setAttribute("x", xPos);
+                key.setAttribute("y", startY);
+                key.setAttribute("width", keyWidth);
+                key.setAttribute("height", keyHeight);
+                key.setAttribute("stroke", "#44403c");
+                
+                const noteIndex = noteMap[whiteKeyNotes[i % 7]];
+                const isPressed = pressedKeys.has(noteIndex);
+                key.setAttribute("fill", isPressed ? "#0d9488" : "white");
+                svg.appendChild(key);
+            }
+            
+            // Draw black keys
+            const blackKeyPattern = [1, 1, 0, 1, 1, 1, 0]; // C#, D#, F#, G#, A#
+            let whiteKeyIndex = 0;
+            for(let i=0; i < numWhiteKeys -1; i++){
+                if(whiteKeyNotes[i % 7] === 'E' || whiteKeyNotes[i % 7] === 'B') continue;
+
+                const key = document.createElementNS(svgNS, "rect");
+                const xPos = (i + 1) * keyWidth - (blackKeyWidth / 2);
+                key.setAttribute("x", xPos);
+                key.setAttribute("y", startY);
+                key.setAttribute("width", blackKeyWidth);
+                key.setAttribute("height", blackKeyHeight);
+                key.setAttribute("rx", "2");
+                key.setAttribute("ry", "2");
+                key.setAttribute("stroke", "black");
+                
+                const noteIndex = noteMap[whiteKeyNotes[i % 7]] + 1;
+                const isPressed = pressedKeys.has(noteIndex);
+                key.setAttribute("fill", isPressed ? "#0d9488" : "black");
+
+                svg.appendChild(key);
+            }
+            return svg;
+        }
+
     </script>
     <div class="text-center mt-4 text-sm text-stone-500">
         <p>DuongPham</p></div>
         <div></div>
+
 </body>
 </html>
