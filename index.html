@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CHORDS FLOW</title>
+    <title>Khám Phá Vòng Hòa Thanh</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tonal/browser/tonal.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -99,15 +100,15 @@
                     <div>
                         <h3 class="text-2xl font-bold mb-4 text-center text-teal-700">Hợp Âm Diatonic</h3>
                         <div id="diatonic-chords" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4"></div>
-                        <div class="mt-10 text-center">
-                            <label class="mr-4 font-medium">Hiển thị hợp âm bằng:</label>
-                            <label class="mr-4">
-                                <input type="radio" name="chord-view" value="guitar" checked> Guitar
-                            </label>
-                            <label>
-                                <input type="radio" name="chord-view" value="piano"> Piano
-                            </label>
-                        </div>
+<div class="mt-10 text-center">
+    <label class="mr-4 font-medium">Hiển thị hợp âm bằng:</label>
+    <label class="mr-4">
+        <input type="radio" name="chord-view" value="guitar" checked> Guitar
+    </label>
+    <label>
+        <input type="radio" name="chord-view" value="piano"> Piano
+    </label>
+</div>
                         <div id="chord-diagrams-container" class="mt-8 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-x-4 gap-y-6 items-start"></div>
 
                     </div>
@@ -261,7 +262,6 @@
         ];
 
         document.addEventListener('DOMContentLoaded', () => {
-            // --- Step 1: Initialize non-data-dependent UI elements ---
             const keySelector = document.getElementById('key-selector');
             const modeSelector = document.getElementById('mode-selector');
             const tabs = document.querySelectorAll('.tab-btn');
@@ -285,24 +285,22 @@
                 });
             });
 
-            // --- Step 2: Fetch data and initialize the rest of the app ---
+            // Fetch data first, then initialize the rest of the app
             fetch('chord_shapes.json')
                 .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
+                    if (!response.ok) throw new Error('Network response was not ok.');
                     return response.json();
                 })
                 .then(data => {
-                    chordShapes = data;
+                    chordShapes = data; // Store the shapes in the global variable
 
-                    // --- Step 3: Now that data is loaded, set up event listeners and initial display ---
+                    // Now that data is loaded, set up event listeners and initial display
                     keySelector.addEventListener('change', updateDisplay);
                     modeSelector.addEventListener('change', updateDisplay);
-                    
+
                     chordViewRadios.forEach(radio => {
                         radio.addEventListener('change', () => {
-                            drawAllDiagrams(); // Redraw all diagrams on instrument change
+                            drawAllDiagrams();
                         });
                     });
 
@@ -311,15 +309,13 @@
                     displayGameScenarios();
                 })
                 .catch(error => {
-                    console.error('Error loading chord shapes:', error);
+                    console.error('Failed to load chord shapes:', error);
                     const keyDetailsContainer = document.getElementById('key-details');
-                    if(keyDetailsContainer){
-                        keyDetailsContainer.innerHTML = `<p class="col-span-full text-center text-red-600 bg-red-100 p-4 rounded-lg"><b>Lỗi:</b> Không thể tải tệp dữ liệu <code>chord_shapes.json</code>. Vui lòng kiểm tra lại đường dẫn tệp và đảm bảo tệp có nội dung JSON hợp lệ.</p>`;
+                    if (keyDetailsContainer) {
+                        keyDetailsContainer.innerHTML = `<p class="col-span-full text-center text-red-600 bg-red-100 p-4 rounded-lg"><b>Lỗi:</b> Không thể tải tệp dữ liệu <code>chord_shapes.json</code>.</p>`;
                     }
                 });
             
-            // --- All function definitions remain below ---
-
             function updateDisplay() {
                 const selectedKey = keySelector.value;
                 const selectedMode = modeSelector.value;
@@ -333,7 +329,7 @@
                 const romanNumeralsMinor = ["i", "ii°", "III", "iv", "V", "VI", "VII"];
                 const numerals = mode === 'major' ? romanNumeralsMajor : romanNumeralsMinor;
 
-                diatonicChordsContainer.innerHTML = '';
+            diatonicChordsContainer.innerHTML = '';
                 currentDiatonicChords = []; // Reset the array for the new key
 
                 if (!keyData) {
@@ -342,27 +338,39 @@
                 }
 
                 keyData.forEach(chord => {
-                    let chordName = chord.note + chord.quality;
-                    let displayName = `${chord.note.replace('#', '♯')}${chord.quality === 'dim' ? '°' : (chord.quality === 'm (or Major)' ? '' : chord.quality)}`;
-                    
-                    if (chord.quality === 'm (or Major)') {
-                        chordName = chord.note; 
-                    }
-                    const lookupName = chordName.replace('dim', '°').replace('dim', 'Bdim'); // Fix for lookup
+                    let quality = chord.quality;
+                    let note = chord.note;
+                    let displayName = '';
+                    let lookupName = `${note}${quality}`;
 
-                    const card = document.createElement('div');
+                    // Handle special cases for Tonal.js compatibility and display
+                    if (quality === 'm (or Major)') {
+                        // This is the V chord in a minor key, which is major in harmonic/melodic minor
+                        quality = '';
+                        lookupName = `${note}`;
+                        displayName = `${note.replace('#', '♯')}`;
+                    } else if (quality === 'dim') {
+                        displayName = `${note.replace('#', '♯')}°`;
+                        lookupName = `${note}dim`; 
+                    } else {
+                        displayName = `${note.replace('#', '♯')}${quality}`;
+                        lookupName = `${note}${quality}`;
+                    }
+
+                
+                const card = document.createElement('div');
                     card.className = 'chord-card p-4 bg-white rounded-lg shadow-md text-center border-2 border-transparent transition-all';
                     
-                    card.innerHTML = `
+                card.innerHTML = `
                         <div class="font-bold text-xl text-stone-800">${displayName}</div>
                         <div class="text-sm text-stone-500">${numerals[chord.degree]}</div>
-                    `;
+                `;
                     
-                    diatonicChordsContainer.appendChild(card);
+                diatonicChordsContainer.appendChild(card);
                     
                     // Store info needed for drawing
                     currentDiatonicChords.push({
-                        lookupName: chordName.replace('dim', 'Bdim'), // Bdim is the key in JSON
+                        lookupName: lookupName,
                         displayName: displayName
                     });
                 });
@@ -415,24 +423,30 @@
         function drawAllDiagrams() {
             const diagramsContainer = document.getElementById('chord-diagrams-container');
             const instrument = document.querySelector('input[name="chord-view"]:checked').value;
-            diagramsContainer.innerHTML = ''; // Clear previous diagrams
+            diagramsContainer.innerHTML = ''; 
 
-            if (!currentDiatonicChords || currentDiatonicChords.length === 0) return;
+            if (!currentDiatonicChords || currentDiatonicChords.length === 0 || typeof Tonal === 'undefined') {
+                return;
+            }
 
             currentDiatonicChords.forEach(chordInfo => {
-                const lookupName = chordInfo.lookupName.replace('°', 'dim');
-                const shapeData = chordShapes[lookupName];
                 let diagramCell = document.createElement('div');
                 diagramCell.className = 'flex justify-center items-start h-full';
 
-                if (!shapeData) {
-                    diagramCell.innerHTML = `<div class="w-full text-center mt-2"><p class="text-xs text-stone-400">Chưa có dữ liệu</p></div>`;
-                } else if (instrument === 'guitar' && shapeData.guitar) {
-                    diagramCell.appendChild(drawGuitarChord(shapeData.guitar));
-                } else if (instrument === 'piano' && shapeData.piano) {
-                    diagramCell.appendChild(drawPianoChord(shapeData.piano));
-                } else {
-                    diagramCell.innerHTML = `<div class="w-full text-center mt-2"><p class="text-xs text-stone-400">Không có thế bấm ${instrument}</p></div>`;
+                if (instrument === 'piano') {
+                    const chord = Tonal.Chord.get(chordInfo.lookupName);
+                    if (chord.empty) {
+                        diagramCell.innerHTML = `<div class="w-full text-center mt-2"><p class="text-xs text-stone-400">Lỗi hợp âm</p></div>`;
+                    } else {
+                        diagramCell.appendChild(drawPianoChord(chord.notes));
+                    }
+                } else if (instrument === 'guitar') {
+                    const shapeData = chordShapes[chordInfo.lookupName];
+                    if (shapeData && shapeData.guitar) {
+                        diagramCell.appendChild(drawGuitarChord(shapeData.guitar));
+                    } else {
+                        diagramCell.innerHTML = `<div class="w-full text-center mt-2"><p class="text-xs text-stone-400">Chưa có thế bấm</p></div>`;
+                    }
                 }
                 diagramsContainer.appendChild(diagramCell);
             });
@@ -564,11 +578,12 @@
             const whiteKeyNotes = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
             const notesInOctave = 12;
             const noteMap = { 'C': 0, 'C#': 1, 'D': 2, 'D#': 3, 'E': 4, 'F': 5, 'F#': 6, 'G': 7, 'G#': 8, 'A': 9, 'A#': 10, 'B': 11 };
-            const pianoNotes = notes.map(n => n.toUpperCase().replace('♯','#').replace('♭','B')); // Simple mapping for flat
+            // Normalize notes for lookup: Gb -> F#, Db -> C# etc.
+            const pianoNotes = notes.map(n => Tonal.Note.simplify(n)); 
 
             const pressedKeys = new Set();
             pianoNotes.forEach(noteName => {
-                const normalizedNote = noteName.endsWith('B') && noteName.length > 1 ? String.fromCharCode(noteName.charCodeAt(0)-1) + '#' : noteName;
+                const normalizedNote = noteName.endsWith('b') ? Tonal.Note.enharmonic(noteName) : noteName;
                  if (noteMap[normalizedNote] !== undefined) {
                     pressedKeys.add(noteMap[normalizedNote]);
                 } else if(noteMap[noteName] !== undefined){
