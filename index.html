@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Khám Phá Vòng Hòa Thanh</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Harmony (Stone, Amber, Teal accents) -->
+    <!-- Application Structure Plan: A tab-based SPA with three main sections: 'Key Explorer' for dynamic chord discovery, 'Game Music Harmony' for application-based exploration of moods, and 'Theory Deep Dive' for advanced concepts. This structure separates the core interactive tool from the application examples and reference material, allowing users to choose their learning path. The Key Explorer is the central feature, promoting hands-on learning over passive reading. -->
+    <!-- Visualization & Content Choices: Report Info: Diatonic chords per key. Goal: Inform/Organize. Viz: Dynamic HTML grid showing chord name, Roman numeral, and quality. Interaction: Dropdown selectors for root note and key type update the grid. Justification: A direct, interactive way to learn key structures. | Report Info: Common progressions & their feel. Goal: Compare. Viz: Interactive cards for each progression. Interaction: Clicking a card could highlight it or show examples. Justification: Organizes progressions by function and feel. | Report Info: Game music scenarios. Goal: Apply/Relate. Viz: Thematic cards for each scenario (Battle, Explore, etc.). Interaction: Click to see suggested progressions. Justification: Connects theory directly to practical, creative application. | Library/Method: All interactions handled by Vanilla JS. Layout by Tailwind CSS. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+            background-color: #fdfbf7;
+            color: #44403c;
+        }
+        .tab-btn {
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+        }
+        .tab-btn.active {
+            border-bottom-color: #0d9488;
+            color: #0d9488;
+            font-weight: 600;
+        }
+        .chord-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .chord-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .section {
+            display: none;
+        }
+        .section.active {
+            display: block;
+        }
+        select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%230d9488%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.4-12.8z%22%2F%3E%3C%2Fsvg%3E');
+            background-repeat: no-repeat;
+            background-position: right 0.7rem center;
+            background-size: 0.65rem auto;
+            padding-right: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mx-auto max-w-7xl px-4 py-8">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl md:text-5xl font-bold text-stone-800">Trình Khám Phá Vòng Hòa Thanh</h1>
+            <p class="mt-2 text-lg text-stone-600">Công cụ tương tác để học và ứng dụng lý thuyết âm nhạc</p>
+        </header>
+
+        <nav class="mb-8 border-b border-stone-200">
+            <ul class="flex flex-wrap -mb-px justify-center text-md font-medium text-center text-stone-500">
+                <li class="mr-2">
+                    <button class="tab-btn active inline-block p-4" data-tab="explorer">🎹 Khám Phá Giọng</button>
+                </li>
+                <li class="mr-2">
+                    <button class="tab-btn inline-block p-4" data-tab="game-music">🎮 Hòa Thanh Game</button>
+                </li>
+                <li>
+                    <button class="tab-btn inline-block p-4" data-tab="theory">📚 Lý Thuyết Nâng Cao</button>
+                </li>
+            </ul>
+        </nav>
+
+        <main>
+            <!-- Key Explorer Section -->
+            <section id="explorer" class="section active">
+                <div class="text-center mb-8">
+                    <p class="text-stone-700">Chọn một giọng điệu để khám phá các hợp âm diatonic và những vòng hòa thanh phổ biến. Đây là bước đầu tiên để hiểu cấu trúc và cảm xúc của một tone nhạc.</p>
+                </div>
+                <div class="flex justify-center items-center gap-4 mb-10 bg-white p-6 rounded-xl shadow-md max-w-md mx-auto">
+                    <div class="w-1/2">
+                        <label for="key-selector" class="block mb-2 text-sm font-medium text-stone-900">Nốt Chủ:</label>
+                        <select id="key-selector" class="bg-stone-50 border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-teal-500 focus:border-teal-500 block w-full p-2.5">
+                        </select>
+                    </div>
+                    <div class="w-1/2">
+                        <label for="mode-selector" class="block mb-2 text-sm font-medium text-stone-900">Chế Độ:</label>
+                        <select id="mode-selector" class="bg-stone-50 border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-teal-500 focus:border-teal-500 block w-full p-2.5">
+                            <option value="major">Trưởng (Major)</option>
+                            <option value="minor">Thứ (minor)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="key-details" class="space-y-10">
+                    <div>
+                        <h3 class="text-2xl font-bold mb-4 text-center text-teal-700">Hợp Âm Diatonic</h3>
+                        <div id="diatonic-chords" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4"></div>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-bold mb-4 text-center text-teal-700">Vòng Hòa Thanh Phổ Biến</h3>
+                        <div id="progressions" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Game Music Section -->
+            <section id="game-music" class="section">
+                <div class="text-center mb-8 max-w-3xl mx-auto">
+                    <p class="text-stone-700">Âm nhạc là linh hồn của game. Mỗi vòng hòa thanh có thể tạo ra một không khí hoàn toàn khác biệt. Khám phá cách sử dụng chúng để xây dựng thế giới cảm xúc cho người chơi, từ những ngôi làng bình yên đến những trận chiến kịch tính.</p>
+                </div>
+                <div id="game-scenarios" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            </section>
+
+            <!-- Theory Section -->
+            <section id="theory" class="section">
+                <div class="bg-white p-8 rounded-xl shadow-md max-w-4xl mx-auto">
+                    <h2 class="text-3xl font-bold text-teal-700 mb-6 text-center">Lý Thuyết Nâng Cao: Hợp Âm Át Thứ Cấp (Secondary Dominants)</h2>
+                    <div class="space-y-6 text-stone-800 prose prose-lg max-w-none">
+                        <p>Hợp âm át thứ cấp (secondary dominants) là các hợp âm trưởng 7 (dominant 7th) không thuộc giọng chính, được dùng để tạo sự căng thẳng và dẫn dắt mạnh mẽ đến một hợp âm diatonic khác (ngoại trừ I và vii°). Chúng được xem là "gia vị" giúp vòng hòa thanh trở nên màu sắc và thú vị hơn.</p>
+                        <p>Chúng thường được ký hiệu là "V của X" (V/X), nghĩa là hợp âm át của hợp âm X. Việc sử dụng chúng sẽ tạo ra một cú hích bất ngờ nhưng hợp lý, làm tăng sự mong đợi của người nghe trước khi quay về hợp âm diatonic mục tiêu.</p>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                            <div class="p-4 bg-stone-50 rounded-lg border border-stone-200">
+                                <h4 class="font-bold text-lg text-teal-600">Trong Giọng Trưởng</h4>
+                                <ul id="secondary-dominants-major" class="list-disc list-inside mt-2 space-y-1"></ul>
+                            </div>
+                            <div class="p-4 bg-stone-50 rounded-lg border border-stone-200">
+                                <h4 class="font-bold text-lg text-teal-600">Trong Giọng Thứ</h4>
+                                <ul id="secondary-dominants-minor" class="list-disc list-inside mt-2 space-y-1"></ul>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 p-4 bg-teal-50 border-l-4 border-teal-500 rounded-r-lg">
+                            <p class="font-semibold">Mẹo ứng dụng:</p>
+                            <p>Hãy thử chèn một hợp âm át thứ cấp ngay trước hợp âm mục tiêu. Ví dụ, trong giọng C Trưởng, thay vì chơi vòng `C – Am – Dm – G`, hãy thử `C – E7 – Am – A7 – Dm – G`. Bạn sẽ nghe thấy sự chuyển động mượt mà và giàu cảm xúc hơn hẳn.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const musicData = {
+            notes: ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"],
+            getNote: function(rootIndex, interval) {
+                return this.notes[(rootIndex + interval) % 12];
+            },
+            getKeyData: function(keyName, mode) {
+                const rootIndex = this.notes.indexOf(keyName);
+                if (rootIndex === -1) return null;
+
+                const majorScaleIntervals = [0, 2, 4, 5, 7, 9, 11];
+                const minorScaleIntervals = [0, 2, 3, 5, 7, 8, 10];
+
+                const intervals = mode === 'major' ? majorScaleIntervals : minorScaleIntervals;
+
+                const chords = intervals.map((interval, i) => {
+                    const note = this.getNote(rootIndex, interval);
+                    let quality = '';
+                    if (mode === 'major') {
+                        if ([0, 3, 4].includes(i)) quality = '';
+                        else if ([1, 2, 5].includes(i)) quality = 'm';
+                        else quality = 'dim';
+                    } else { // minor
+                        if ([2, 5, 6].includes(i)) quality = '';
+                        else if ([0, 3].includes(i)) quality = 'm';
+                        else if (i === 1) quality = 'dim';
+                        else if (i === 4) quality = 'm (or Major)';
+                    }
+                    return { note, quality, degree: i };
+                });
+
+                if (mode === 'minor') {
+                    const harmonicV = { ...chords[4], quality: '', note: this.getNote(rootIndex, intervals[4]) };
+                    chords[4] = harmonicV;
+                }
+                
+                return chords;
+            }
+        };
+
+        const progressionsData = {
+            major: [
+                { roman: "I – IV – V – I", desc: "Cơ bản, dân gian, pop nhẹ. Tạo cảm giác hoàn chỉnh, ổn định." },
+                { roman: "I – V – vi – IV", desc: "Ballad hiện đại, pop, rock. Cảm xúc sâu lắng, dễ nghe." },
+                { roman: "vi – IV – I – V", desc: "Nhẹ nhàng, nội tâm, hơi buồn man mác. Phù hợp cảnh suy tư." },
+                { roman: "ii – V – I", desc: "Vòng jazz cổ điển. Chuyển động mượt mà, sang trọng." },
+                { roman: "I – iii – IV – V", desc: "Kể chuyện, phiêu lưu, có sự phát triển và biến đổi." },
+                { roman: "I – IV – ii – V", desc: "Biến thể mượt mà hơn của I-IV-V-I. Phù hợp cảnh bình yên, thư giãn." }
+            ],
+            minor: [
+                { roman: "i – VI – VII – i", desc: "Mạnh mẽ, sử thi. Phù hợp rock, pop, cảnh chiến đấu." },
+                { roman: "i – iv – V – i", desc: "Kinh điển, kịch tính. Phù hợp blues, rock, cảnh hồi hộp, giải quyết xung đột." },
+                { roman: "i – VI – III – VII", desc: "Lãng mạn, hoài niệm, bí ẩn. Phù hợp cảnh khám phá, khu vực cổ kính." },
+                { roman: "ii° – V – i", desc: "Vòng jazz trong giọng thứ. Tinh tế, phù hợp cảnh đêm, đối thoại sâu sắc." },
+                { roman: "i – VII – VI – V", desc: "Tiến lên, hùng tráng, kịch tính. Phù hợp cảnh hành quân, chuẩn bị chiến đấu." }
+            ]
+        };
+
+        const gameScenariosData = [
+            { title: "Mở Đầu / Khu An Toàn", icon: "🏞️", emotion: "Bình yên, chào đón", progressions: ["I – IV – V – I (Trưởng)", "vi – IV – I – V (Trưởng, chậm)"] },
+            { title: "Phiêu Lưu / Khám Phá", icon: "🗺️", emotion: "Hào hứng, tò mò", progressions: ["I – iii – IV – V (Trưởng)", "i – VI – III – VII (Thứ)"] },
+            { title: "Chiến Đấu / Kịch Tính", icon: "⚔️", emotion: "Căng thẳng, quyết liệt", progressions: ["i – iv – V – i (Thứ)", "i – VII – VI – V (Thứ)"] },
+            { title: "Buồn / Hồi Ức", icon: "💧", emotion: "U sầu, hoài niệm", progressions: ["vi – IV – I – V (Trưởng)", "i – iv – v (Thứ tự nhiên)"] },
+            { title: "Thắng Lợi / Thành Tựu", icon: "🏆", emotion: "Hân hoan, tự hào", progressions: ["I – IV – V – I (Trưởng, nhanh)"] },
+            { title: "Giao Tiếp / Đối Thoại", icon: "💬", emotion: "Bình tĩnh, tập trung", progressions: ["ii – V – I (Trưởng/Thứ)"] }
+        ];
+
+        const secondaryDominantsData = {
+            major: [
+                { rule: "V7/ii", example: "A7 → Dm", key: "C" },
+                { rule: "V7/iii", example: "B7 → Em", key: "C" },
+                { rule: "V7/IV", example: "C7 → F", key: "C" },
+                { rule: "V7/V", example: "D7 → G", key: "C" },
+                { rule: "V7/vi", example: "E7 → Am", key: "C" },
+            ],
+            minor: [
+                { rule: "V7/III", example: "G7 → C", key: "Am" },
+                { rule: "V7/iv", example: "A7 → Dm", key: "Am" },
+                { rule: "V7/VI", example: "C7 → F", key: "Am" },
+                { rule: "V7/VII", example: "D7 → G", key: "Am" },
+            ]
+        };
+
+        const romanNumerals = ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°'];
+        const minorRomanNumerals = ['i', 'ii°', 'III', 'iv', 'v', 'VI', 'VII'];
+
+        const keySelector = document.getElementById('key-selector');
+        const modeSelector = document.getElementById('mode-selector');
+        const diatonicChordsContainer = document.getElementById('diatonic-chords');
+        const progressionsContainer = document.getElementById('progressions');
+        const gameScenariosContainer = document.getElementById('game-scenarios');
+        const secondaryDominantsMajorContainer = document.getElementById('secondary-dominants-major');
+        const secondaryDominantsMinorContainer = document.getElementById('secondary-dominants-minor');
+        const tabs = document.querySelectorAll('.tab-btn');
+        const sections = document.querySelectorAll('.section');
+
+        function init() {
+            musicData.notes.forEach(note => {
+                const option = document.createElement('option');
+                option.value = note;
+                option.textContent = note;
+                keySelector.appendChild(option);
+            });
+            keySelector.value = 'C';
+
+            updateUI();
+            populateGameScenarios();
+            populateSecondaryDominants();
+
+            keySelector.addEventListener('change', updateUI);
+            modeSelector.addEventListener('change', updateUI);
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+
+                    sections.forEach(s => s.classList.remove('active'));
+                    document.getElementById(tab.dataset.tab).classList.add('active');
+                });
+            });
+        }
+
+        function updateUI() {
+            const selectedKey = keySelector.value;
+            const selectedMode = modeSelector.value;
+            const keyData = musicData.getKeyData(selectedKey, selectedMode);
+
+            if (!keyData) return;
+
+            displayDiatonicChords(keyData, selectedMode);
+            displayProgressions(keyData, selectedMode);
+        }
+        
+        function displayDiatonicChords(chords, mode) {
+            diatonicChordsContainer.innerHTML = '';
+            const numerals = mode === 'major' ? romanNumerals : minorRomanNumerals;
+            chords.forEach((chord, i) => {
+                let qualityDisplay = chord.quality;
+                if (qualityDisplay === 'm (or Major)') {
+                    qualityDisplay = ' (V)';
+                }
+                
+                const card = document.createElement('div');
+                card.className = 'chord-card text-center bg-white p-4 rounded-lg shadow-md border border-stone-200';
+                card.innerHTML = `
+                    <p class="text-2xl font-bold text-teal-600">${chord.note}${qualityDisplay.replace(' (V)', '')}</p>
+                    <p class="text-stone-500 font-semibold">${numerals[i]}</p>
+                `;
+                diatonicChordsContainer.appendChild(card);
+            });
+        }
+
+        function displayProgressions(chords, mode) {
+            progressionsContainer.innerHTML = '';
+            const progressions = progressionsData[mode];
+            progressions.forEach(prog => {
+                const card = document.createElement('div');
+                card.className = 'chord-card bg-white p-6 rounded-lg shadow-md border border-stone-200';
+                
+                let actualChords = prog.roman.split(' – ').map(r => {
+                    const numerals = mode === 'major' ? romanNumerals : minorRomanNumerals;
+                    const index = numerals.indexOf(r);
+                    if (index !== -1) {
+                        let chord = chords[index];
+                        let qualityDisplay = chord.quality;
+                         if (qualityDisplay === 'm (or Major)') {
+                            qualityDisplay = '';
+                        }
+                        return `${chord.note}${qualityDisplay}`;
+                    }
+                    return r;
+                }).join(' – ');
+
+                card.innerHTML = `
+                    <h4 class="font-bold text-xl text-teal-700 mb-2">${prog.roman}</h4>
+                    <p class="text-lg font-mono text-stone-800 mb-3">${actualChords}</p>
+                    <p class="text-stone-600">${prog.desc}</p>
+                `;
+                progressionsContainer.appendChild(card);
+            });
+        }
+
+        function populateGameScenarios() {
+            gameScenariosData.forEach(scenario => {
+                const card = document.createElement('div');
+                card.className = 'chord-card bg-white p-6 rounded-lg shadow-md border border-stone-200 flex flex-col';
+                card.innerHTML = `
+                    <div class="text-4xl mb-3 text-center">${scenario.icon}</div>
+                    <h4 class="font-bold text-xl text-teal-700 text-center mb-2">${scenario.title}</h4>
+                    <p class="text-center text-stone-500 italic mb-4">"${scenario.emotion}"</p>
+                    <div class="mt-auto space-y-2">
+                        ${scenario.progressions.map(p => `<p class="text-center font-mono bg-stone-100 text-stone-700 py-1 px-2 rounded">${p}</p>`).join('')}
+                    </div>
+                `;
+                gameScenariosContainer.appendChild(card);
+            });
+        }
+
+        function populateSecondaryDominants() {
+            secondaryDominantsData.major.forEach(item => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span class="font-bold text-stone-700">${item.rule}:</span> <span class="font-mono">${item.example}</span> (trong giọng ${item.key})`;
+                secondaryDominantsMajorContainer.appendChild(li);
+            });
+            secondaryDominantsData.minor.forEach(item => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span class="font-bold text-stone-700">${item.rule}:</span> <span class="font-mono">${item.example}</span> (trong giọng ${item.key})`;
+                secondaryDominantsMinorContainer.appendChild(li);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+    <div class="text-center mt-4 text-sm text-stone-500">
+        <p>DuongPham</p></div>
+        <div></div>
+</body>
+</html>
