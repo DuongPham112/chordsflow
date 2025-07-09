@@ -259,18 +259,7 @@
         ];
 
         document.addEventListener('DOMContentLoaded', () => {
-            fetch('chord_shapes.json')
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    chordShapes = data;
-                })
-                .catch(error => console.error('Error loading chord shapes:', error));
-
+            // --- Step 1: Initialize non-data-dependent UI elements ---
             const keySelector = document.getElementById('key-selector');
             const modeSelector = document.getElementById('mode-selector');
             const tabs = document.querySelectorAll('.tab-btn');
@@ -285,11 +274,59 @@
                 keySelector.appendChild(option);
             });
 
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    sections.forEach(s => s.classList.remove('active'));
+                    document.getElementById(tab.dataset.tab).classList.add('active');
+                });
+            });
+
+            // --- Step 2: Fetch data and initialize the rest of the app ---
+            fetch('chord_shapes.json')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    chordShapes = data;
+
+                    // --- Step 3: Now that data is loaded, set up event listeners and initial display ---
+                    keySelector.addEventListener('change', updateDisplay);
+                    modeSelector.addEventListener('change', updateDisplay);
+                    
+                    chordViewRadios.forEach(radio => {
+                        radio.addEventListener('change', () => {
+                            if (selectedChord) {
+                                // Find the display name from the card to pass to the draw function
+                                const selectedChordCard = document.querySelector(`.chord-card[data-chord-name="${selectedChord.replace('dim','°')}"]`);
+                                const displayName = selectedChordCard ? selectedChordCard.dataset.chordName : selectedChord;
+                                drawChordDiagram(selectedChord, displayName);
+                            }
+                        });
+                    });
+
+                    // Initial display load
+                    updateDisplay();
+                    displayGameScenarios();
+                })
+                .catch(error => {
+                    console.error('Error loading chord shapes:', error);
+                    const keyDetailsContainer = document.getElementById('key-details');
+                    if(keyDetailsContainer){
+                        keyDetailsContainer.innerHTML = `<p class="col-span-full text-center text-red-600 bg-red-100 p-4 rounded-lg"><b>Lỗi:</b> Không thể tải tệp dữ liệu <code>chord_shapes.json</code>. Vui lòng kiểm tra lại đường dẫn tệp và đảm bảo tệp có nội dung JSON hợp lệ.</p>`;
+                    }
+                });
+            
+            // --- All function definitions remain below ---
+
             function updateDisplay() {
                 const selectedKey = keySelector.value;
                 const selectedMode = modeSelector.value;
                 displayKey(selectedKey, selectedMode);
-                // The theory part is static in this version, so no need to call updateTheory
             }
 
             function displayKey(keyName, mode) {
@@ -355,31 +392,6 @@
                 });
             }
 
-            keySelector.addEventListener('change', updateDisplay);
-            modeSelector.addEventListener('change', updateDisplay);
-
-            tabs.forEach(tab => {
-                tab.addEventListener('click', () => {
-                    tabs.forEach(t => t.classList.remove('active'));
-                    tab.classList.add('active');
-                    sections.forEach(s => s.classList.remove('active'));
-                    document.getElementById(tab.dataset.tab).classList.add('active');
-                });
-            });
-
-            chordViewRadios.forEach(radio => {
-                radio.addEventListener('change', () => {
-                    if (selectedChord) {
-                        const selectedChordCard = document.querySelector(`.chord-card[data-chord-name="${selectedChord.replace('dim','°')}"]`);
-                        const displayName = selectedChordCard ? selectedChordCard.dataset.chordName : selectedChord;
-                        drawChordDiagram(selectedChord, displayName);
-                    }
-                });
-            });
-
-            // Initial load
-            updateDisplay();
-            displayGameScenarios();
         });
 
         function displayGameScenarios() {
